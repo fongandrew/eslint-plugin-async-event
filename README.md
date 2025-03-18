@@ -112,6 +112,34 @@ You can customize which properties are disallowed by providing a properties arra
 }
 ```
 
+You can also customize how variables are identified as event parameters:
+
+```js
+{
+  'async-event/no-async-event-properties': ['error', {
+    // Standard properties to check
+    properties: ['currentTarget', 'preventDefault', 'target', 'bubbles'],
+
+    // Configure event parameter detection
+    eventPatterns: [
+      'event',
+      'e',
+      'ev',
+      'evt',
+      'mouseEvent',
+      '*Event',  // wildcard pattern for anything ending with "Event"
+      '_event*'  // wildcard pattern for anything starting with "_event"
+    ]
+  }]
+}
+```
+
+By default, the plugin identifies event parameters using:
+- Exact matches for: `event`, `e`, `ev`
+- Wildcard pattern: `*Event` (anything ending with "Event")
+
+Wildcard patterns use `*` to match any string (including empty string). The `*` can appear anywhere in the pattern.
+
 #### Examples of incorrect code:
 
 ```js
@@ -170,6 +198,33 @@ async function handleInput(event) {
 ### no-async-event-reference
 
 Prevents referencing event objects after await expressions or in promise chains. This is essentially a stronger version of `no-async-event-properties` to prevent, e.g., asynchronously passing the `event` object to some helper function which then calls `preventDefault`.
+
+#### Rule Options
+
+You can customize how variables are identified as event parameters:
+
+```js
+{
+  'async-event/no-async-event-reference': ['error', {
+    // Configure event parameter detection
+    eventPatterns: [
+      'event',
+      'e',
+      'ev',
+      'evt',
+      'mouseEvent',
+      '*Event',  // wildcard pattern for anything ending with "Event"
+      '_event*'  // wildcard pattern for anything starting with "_event"
+    ]
+  }]
+}
+```
+
+By default, the plugin identifies event parameters using:
+- Exact matches for: `event`, `e`, `ev`, `evt`
+- Wildcard pattern: `*Event` (anything ending with "Event")
+
+Wildcard patterns use `*` to match any string (including empty string). The `*` can appear anywhere in the pattern.
 
 #### Examples of incorrect code:
 

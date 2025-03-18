@@ -23,6 +23,17 @@ function createAsyncContextTracker() {
     const parameterScopes = new Map();
     // Track parent-child relationships between functions
     const parentFunctions = new WeakMap();
+    // Default event detection configuration
+    const DEFAULT_EVENT_DETECTION_CONFIG = {
+        patterns: [
+            'event',
+            'e',
+            'ev',
+            '*Event', // ends with "Event"
+        ],
+    };
+    // Current event detection configuration - initialized with defaults
+    let eventDetectionConfig = DEFAULT_EVENT_DETECTION_CONFIG;
     // Helper function to collect parameter names
     const collectParamNames = (params, functionNode) => {
         const paramNames = new Set();
@@ -42,7 +53,22 @@ function createAsyncContextTracker() {
     };
     // Helper to check if a variable name is likely an event parameter
     const isLikelyEventParam = (name) => {
-        return name === 'event' || name === 'e' || name === 'ev' || name.endsWith('Event');
+        for (const pattern of eventDetectionConfig.patterns) {
+            // Exact match
+            if (pattern === name) {
+                return true;
+            }
+            // Wildcard pattern matching
+            if (pattern.includes('*')) {
+                const regexPattern = pattern
+                    .replace(/[.+?^${}()|[\]\\]/g, '\\$&') // Escape regex special chars except *
+                    .replace(/\*/g, '.*'); // Convert * to .*
+                if (new RegExp(`^${regexPattern}$`).test(name)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     };
     // Check if a variable name is a parameter in any function in the current scope
     const isParameterInScope = (name) => {
@@ -60,8 +86,8 @@ function createAsyncContextTracker() {
         }
         // For nested functions, check for parameter inheritance from parent scopes
         if (functionStack.length > 0) {
-            const currentFunc = functionStack[functionStack.length - 1];
             // Check if any of the parameter's scopes are ancestors of the current function
+            // This is a simple approximation - in a real implementation we'd traverse the AST
             for (const paramFunc of paramScopes) {
                 // Check if the parameter function is an ancestor of the current function
                 // This is a simple approximation - in a real implementation we'd traverse the AST
@@ -103,8 +129,7 @@ function createAsyncContextTracker() {
         let foundAsyncAwait = false;
         let asyncAwaitFunction = null;
         // Check each function in the stack, starting from the outermost
-        for (let i = 0; i < functionStack.length; i++) {
-            const func = functionStack[i];
+        for (const func of functionStack) {
             if (functionsWithAwait.get(func)) {
                 foundAsyncAwait = true;
                 asyncAwaitFunction = func;
@@ -311,6 +336,10 @@ function createAsyncContextTracker() {
             },
         };
     };
+    // Method to update event detection configuration
+    const setEventDetectionConfig = (config) => {
+        eventDetectionConfig = config;
+    };
     return {
         functionsWithAwait,
         functionStack,
@@ -319,10 +348,12 @@ function createAsyncContextTracker() {
         nonEventVariables,
         eventAliases,
         parameterScopes,
+        eventDetectionConfig,
         isInAsyncContext,
         isLikelyEventParam,
         isDerivedFromEventParam,
         isParameterInScope,
+        setEventDetectionConfig,
         createListeners,
     };
 }

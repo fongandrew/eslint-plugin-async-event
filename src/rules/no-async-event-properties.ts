@@ -35,6 +35,12 @@ const noAsyncEventProperties: Rule.RuleModule = {
 							type: 'string',
 						},
 					},
+					eventPatterns: {
+						type: 'array',
+						items: {
+							type: 'string',
+						},
+					},
 				},
 				additionalProperties: false,
 			},
@@ -56,6 +62,17 @@ const noAsyncEventProperties: Rule.RuleModule = {
 
 		// Create a tracker for managing async context
 		const tracker = createAsyncContextTracker();
+
+		// Configure event detection if provided
+		if (options.eventPatterns) {
+			const patterns: string[] = options.eventPatterns;
+
+			// Only update if we have at least one pattern
+			if (patterns.length > 0) {
+				tracker.setEventDetectionConfig({ patterns });
+			}
+		}
+
 		// Get the base listeners for tracking async context
 		const baseListeners = tracker.createListeners(context);
 

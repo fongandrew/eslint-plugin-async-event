@@ -9,6 +9,11 @@ import type {
 	VariableDeclarator,
 } from 'estree';
 
+// Event detector config type
+export interface EventDetectionConfig {
+	patterns: string[];
+}
+
 // Types for the async context tracker
 export interface AsyncContextTracker {
 	functionsWithAwait: WeakMap<Node, boolean>;
@@ -18,6 +23,7 @@ export interface AsyncContextTracker {
 	nonEventVariables: Set<string>;
 	eventAliases: Map<string, string>; // Map of aliases to their source event names
 	parameterScopes: Map<string, Node[]>; // Map of parameter names to their function scopes
+	eventDetectionConfig: EventDetectionConfig; // Configuration for event parameter detection
 
 	// Method to check if we're in an async context (after await or in promise chain)
 	isInAsyncContext(
@@ -30,6 +36,9 @@ export interface AsyncContextTracker {
 
 	// Method to check if name is a common event parameter name
 	isLikelyEventParam(name: string): boolean;
+
+	// Method to update event detection configuration
+	setEventDetectionConfig(config: EventDetectionConfig): void;
 
 	// Method to check if a variable is derived from an event parameter
 	isDerivedFromEventParam(name: string): boolean;
@@ -64,6 +73,20 @@ export function createAsyncContextTracker(): AsyncContextTracker {
 	// Track parent-child relationships between functions
 	const parentFunctions = new WeakMap<Node, Node>();
 
+	// Default event detection configuration
+	const DEFAULT_EVENT_DETECTION_CONFIG: EventDetectionConfig = {
+		patterns: [
+			'event',
+			'e',
+			'ev',
+			'evt',
+			'*Event', // ends with "Event"
+		],
+	};
+
+	// Current event detection configuration - initialized with defaults
+	let eventDetectionConfig: EventDetectionConfig = DEFAULT_EVENT_DETECTION_CONFIG;
+
 	// Helper function to collect parameter names
 	const collectParamNames = (params: Pattern[], functionNode: Node): Set<string> => {
 		const paramNames = new Set<string>();
@@ -86,7 +109,24 @@ export function createAsyncContextTracker(): AsyncContextTracker {
 
 	// Helper to check if a variable name is likely an event parameter
 	const isLikelyEventParam = (name: string): boolean => {
-		return name === 'event' || name === 'e' || name === 'ev' || name.endsWith('Event');
+		for (const pattern of eventDetectionConfig.patterns) {
+			// Exact match
+			if (pattern === name) {
+				return true;
+			}
+
+			// Wildcard pattern matching
+			if (pattern.includes('*')) {
+				const regexPattern = pattern
+					.replace(/[.+?^${}()|[\]\\]/g, '\\$&') // Escape regex special chars except *
+					.replace(/\*/g, '.*'); // Convert * to .*
+
+				if (new RegExp(`^${regexPattern}$`).test(name)) {
+					return true;
+				}
+			}
+		}
+		return false;
 	};
 
 	// Check if a variable name is a parameter in any function in the current scope
@@ -109,6 +149,7 @@ export function createAsyncContextTracker(): AsyncContextTracker {
 		// For nested functions, check for parameter inheritance from parent scopes
 		if (functionStack.length > 0) {
 			// Check if any of the parameter's scopes are ancestors of the current function
+			// This is a simple approximation - in a real implementation we'd traverse the AST
 			for (const paramFunc of paramScopes) {
 				// Check if the parameter function is an ancestor of the current function
 				// This is a simple approximation - in a real implementation we'd traverse the AST
@@ -410,6 +451,11 @@ export function createAsyncContextTracker(): AsyncContextTracker {
 		};
 	};
 
+	// Method to update event detection configuration
+	const setEventDetectionConfig = (config: EventDetectionConfig): void => {
+		eventDetectionConfig = config;
+	};
+
 	return {
 		functionsWithAwait,
 		functionStack,
@@ -418,10 +464,12 @@ export function createAsyncContextTracker(): AsyncContextTracker {
 		nonEventVariables,
 		eventAliases,
 		parameterScopes,
+		eventDetectionConfig,
 		isInAsyncContext,
 		isLikelyEventParam,
 		isDerivedFromEventParam,
 		isParameterInScope,
+		setEventDetectionConfig,
 		createListeners,
 	};
 }

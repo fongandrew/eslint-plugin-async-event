@@ -19,11 +19,34 @@ const noAsyncEventReference = {
         messages: {
             noAsyncEventReference: "Don't reference event objects after an await or in promise chains. Store needed values in variables before async operations.",
         },
-        schema: [],
+        schema: [
+            {
+                type: 'object',
+                properties: {
+                    eventPatterns: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                        },
+                    },
+                },
+                additionalProperties: false,
+            },
+        ],
     },
     create(context) {
         // Create a tracker for managing async context
         const tracker = (0, async_context_1.createAsyncContextTracker)();
+        // Get user-configured options
+        const options = context.options[0] || {};
+        // Configure event detection if provided
+        if (options.eventPatterns) {
+            const patterns = options.eventPatterns;
+            // Only update if we have at least one pattern
+            if (patterns.length > 0) {
+                tracker.setEventDetectionConfig({ patterns });
+            }
+        }
         // Get the base listeners for tracking async context
         const baseListeners = tracker.createListeners(context);
         // Track nodes that have already been reported to avoid duplicates

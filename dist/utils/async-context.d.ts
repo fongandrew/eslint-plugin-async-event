@@ -1,5 +1,8 @@
 import type { Rule } from 'eslint';
 import type { Node } from 'estree';
+export interface EventDetectionConfig {
+    patterns: string[];
+}
 export interface AsyncContextTracker {
     functionsWithAwait: WeakMap<Node, boolean>;
     functionStack: Node[];
@@ -8,8 +11,10 @@ export interface AsyncContextTracker {
     nonEventVariables: Set<string>;
     eventAliases: Map<string, string>;
     parameterScopes: Map<string, Node[]>;
+    eventDetectionConfig: EventDetectionConfig;
     isInAsyncContext(objectName: string, messageId: string, node: Node, context: Rule.RuleContext, data?: Record<string, any>): boolean;
     isLikelyEventParam(name: string): boolean;
+    setEventDetectionConfig(config: EventDetectionConfig): void;
     isDerivedFromEventParam(name: string): boolean;
     isParameterInScope(name: string): boolean;
     createListeners(context: Rule.RuleContext): Rule.RuleListener;
