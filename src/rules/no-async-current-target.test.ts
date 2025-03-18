@@ -49,6 +49,29 @@ ruleTester.run('no-async-current-target', noAsyncCurrentTarget, {
       await fetch('/api');
       console.log(obj.currentTarget);
     }`,
+
+		// Storing currentTarget before promise chain is fine
+		`function handler(event) {
+      const target = event.currentTarget;
+      fetchData().then(() => {
+        console.log(target);
+      });
+    }`,
+
+		// Using 'event' parameter in promise chain that is NOT from outside scope is fine
+		`function handler() {
+      fetchData().then((event) => {
+        console.log(event.currentTarget);
+      });
+    }`,
+
+		// Using an object called 'event' with a property called 'currentTarget' in promise chain is fine
+		`function handler() {
+      const event = { currentTarget: 'test' };
+      fetchData().then(() => {
+        console.log(event.currentTarget);
+      });
+    }`,
 	],
 	invalid: [
 		// Basic case - accessing currentTarget after await
@@ -115,6 +138,76 @@ ruleTester.run('no-async-current-target', noAsyncCurrentTarget, {
 			code: `async function outer(event) {
         await Promise.resolve();
         console.log(event.currentTarget);
+      }`,
+			errors: [{ messageId: 'noAsyncCurrentTarget' }],
+		},
+
+		// NEW: Promise chain .then - accessing event.currentTarget inside .then
+		{
+			code: `function handler(event) {
+        fetchData().then(() => {
+          console.log(event.currentTarget);
+        });
+      }`,
+			errors: [{ messageId: 'noAsyncCurrentTarget' }],
+		},
+
+		// NEW: Promise chain .catch - accessing event.currentTarget inside .catch
+		{
+			code: `function handler(event) {
+        fetchData()
+          .then(() => {
+            // Some code
+          })
+          .catch(() => {
+            console.log(event.currentTarget);
+          });
+      }`,
+			errors: [{ messageId: 'noAsyncCurrentTarget' }],
+		},
+
+		// NEW: Promise chain .finally - accessing event.currentTarget inside .finally
+		{
+			code: `function handler(event) {
+        fetchData()
+          .then(() => {
+            // Some code
+          })
+          .finally(() => {
+            console.log(event.currentTarget);
+          });
+      }`,
+			errors: [{ messageId: 'noAsyncCurrentTarget' }],
+		},
+
+		// NEW: Nested promise chain - accessing event.currentTarget inside nested .then
+		{
+			code: `function handler(event) {
+        fetchData().then(() => {
+          return anotherFetch().then(() => {
+            console.log(event.currentTarget);
+          });
+        });
+      }`,
+			errors: [{ messageId: 'noAsyncCurrentTarget' }],
+		},
+
+		// NEW: Using in expression inside promise chain
+		{
+			code: `function handler(event) {
+        fetchData().then(() => {
+          const id = event.currentTarget.id;
+        });
+      }`,
+			errors: [{ messageId: 'noAsyncCurrentTarget' }],
+		},
+
+		// NEW: Using in expression inside promise chain with e param name
+		{
+			code: `function handler(e) {
+        fetchData().then(() => {
+          const id = e.currentTarget.id;
+        });
       }`,
 			errors: [{ messageId: 'noAsyncCurrentTarget' }],
 		},
