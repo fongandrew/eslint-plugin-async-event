@@ -19,12 +19,23 @@ function createAsyncContextTracker() {
     const nonEventVariables = new Set();
     // Track variables that are aliases of event parameters (e.g., const savedEvent = event)
     const eventAliases = new Map();
+    // Track parameter names and their function scopes
+    const parameterScopes = new Map();
+    // Track parent-child relationships between functions
+    const parentFunctions = new WeakMap();
     // Helper function to collect parameter names
-    const collectParamNames = (params) => {
+    const collectParamNames = (params, functionNode) => {
         const paramNames = new Set();
         params.forEach((param) => {
             if (param.type === 'Identifier') {
                 paramNames.add(param.name);
+                // Track this parameter and its function scope
+                if (!parameterScopes.has(param.name)) {
+                    parameterScopes.set(param.name, []);
+                }
+                const scopes = parameterScopes.get(param.name) || [];
+                scopes.push(functionNode);
+                parameterScopes.set(param.name, scopes);
             }
         });
         return paramNames;
@@ -36,34 +47,94 @@ function createAsyncContextTracker() {
             name === 'ev' ||
             name.endsWith('Event'));
     };
+    // Check if a variable name is a parameter in any function in the current scope
+    const isParameterInScope = (name) => {
+        // If not tracked as a parameter anywhere, return false
+        if (!parameterScopes.has(name)) {
+            return false;
+        }
+        // Get all function nodes where this is a parameter
+        const paramScopes = parameterScopes.get(name) || [];
+        // Check if any of those function nodes are in our current scope
+        for (const func of functionStack) {
+            if (paramScopes.includes(func)) {
+                return true;
+            }
+        }
+        // For nested functions, check for parameter inheritance from parent scopes
+        if (functionStack.length > 0) {
+            const currentFunc = functionStack[functionStack.length - 1];
+            // Check if any of the parameter's scopes are ancestors of the current function
+            for (const paramFunc of paramScopes) {
+                // Check if the parameter function is an ancestor of the current function
+                // This is a simple approximation - in a real implementation we'd traverse the AST
+                if (functionStack.includes(paramFunc)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
     // Helper to check if a variable is derived from an event parameter
     const isDerivedFromEventParam = (name) => {
         // Check if this is an alias of an event parameter
         let current = name;
-        let visited = new Set();
+        const visited = new Set();
         while (eventAliases.has(current) && !visited.has(current)) {
             visited.add(current);
             current = eventAliases.get(current);
-            // If we found an event parameter in the chain, return true
-            if (isLikelyEventParam(current)) {
-                // Check if this is a parameter in any function in the stack
-                for (const func of functionStack) {
-                    const params = functionParams.get(func) || new Set();
-                    if (params.has(current)) {
-                        return true;
-                    }
-                }
+            // If we found an event parameter in the chain, check if it's a parameter in scope
+            if (isLikelyEventParam(current) && isParameterInScope(current)) {
+                return true;
             }
         }
         return false;
     };
     // Method to check if we're in an async context and report if necessary
     const isInAsyncContext = (objectName, messageId, node, context) => {
-        // Check for async function with await
-        if (functionStack.length > 0) {
-            const currentFunction = functionStack[functionStack.length - 1];
-            const hasAwait = functionsWithAwait.get(currentFunction);
-            if (hasAwait) {
+        // First check if this is actually a parameter or derived from a parameter
+        // If it's not a parameter, we don't want to report it regardless of async context
+        if (!isParameterInScope(objectName) && !isDerivedFromEventParam(objectName)) {
+            return false;
+        }
+        // Also check if this looks like an event parameter name - if not, don't report
+        // This prevents flagging non-event parameters like "data" in async functions
+        if (!isLikelyEventParam(objectName) && !isDerivedFromEventParam(objectName)) {
+            return false;
+        }
+        // Look for an async function with await in the stack
+        let foundAsyncAwait = false;
+        let asyncAwaitFunction = null;
+        // Check each function in the stack, starting from the outermost
+        for (let i = 0; i < functionStack.length; i++) {
+            const func = functionStack[i];
+            if (functionsWithAwait.get(func)) {
+                foundAsyncAwait = true;
+                asyncAwaitFunction = func;
+                break;
+            }
+        }
+        // If we found an async function with await
+        if (foundAsyncAwait && asyncAwaitFunction) {
+            // Check if the event parameter comes from this function or an outer scope
+            const paramScopes = parameterScopes.get(objectName) || [];
+            // The event param could be:
+            // 1. Directly from the async function with await
+            // 2. From a parent function of the async function
+            // 3. From a parent function of the current function
+            for (const paramFunc of paramScopes) {
+                // If the parameter is from the async function or a parent, report it
+                if (paramFunc === asyncAwaitFunction ||
+                    functionStack.indexOf(paramFunc) < functionStack.indexOf(asyncAwaitFunction)) {
+                    context.report({
+                        node,
+                        messageId,
+                    });
+                    return true;
+                }
+            }
+            // If the variable is derived from an event parameter, also report it
+            if (isDerivedFromEventParam(objectName)) {
                 context.report({
                     node,
                     messageId,
@@ -87,11 +158,15 @@ function createAsyncContextTracker() {
         // If we're in a promise chain and the variable isn't defined in the current function,
         // it's coming from the outer scope and should be reported
         if (inPromiseChain && !isDefinedInCurrentFunction) {
-            context.report({
-                node,
-                messageId,
-            });
-            return true;
+            // Again, only report if it's actually an event parameter
+            const paramScopes = parameterScopes.get(objectName) || [];
+            if (paramScopes.length > 0 || isDerivedFromEventParam(objectName)) {
+                context.report({
+                    node,
+                    messageId,
+                });
+                return true;
+            }
         }
         return false;
     };
@@ -100,48 +175,78 @@ function createAsyncContextTracker() {
         return {
             // Enter an async function or method
             'FunctionDeclaration[async=true]': (node) => {
+                // Track parent-child relationship if we're inside another function
+                if (functionStack.length > 0) {
+                    const parentFunction = functionStack[functionStack.length - 1];
+                    parentFunctions.set(node, parentFunction);
+                }
                 functionStack.push(node);
                 functionsWithAwait.set(node, false);
                 // Track parameter names
-                const params = collectParamNames(node.params);
+                const params = collectParamNames(node.params, node);
                 functionParams.set(node, params);
             },
             'FunctionExpression[async=true]': (node) => {
+                // Track parent-child relationship if we're inside another function
+                if (functionStack.length > 0) {
+                    const parentFunction = functionStack[functionStack.length - 1];
+                    parentFunctions.set(node, parentFunction);
+                }
                 functionStack.push(node);
                 functionsWithAwait.set(node, false);
                 // Track parameter names
-                const params = collectParamNames(node.params);
+                const params = collectParamNames(node.params, node);
                 functionParams.set(node, params);
             },
             'ArrowFunctionExpression[async=true]': (node) => {
+                // Track parent-child relationship if we're inside another function
+                if (functionStack.length > 0) {
+                    const parentFunction = functionStack[functionStack.length - 1];
+                    parentFunctions.set(node, parentFunction);
+                }
                 functionStack.push(node);
                 functionsWithAwait.set(node, false);
                 // Track parameter names
-                const params = collectParamNames(node.params);
+                const params = collectParamNames(node.params, node);
                 functionParams.set(node, params);
             },
             // Track non-async functions as well, for promise chains
             FunctionDeclaration: (node) => {
                 if (!node.async) {
+                    // Track parent-child relationship if we're inside another function
+                    if (functionStack.length > 0) {
+                        const parentFunction = functionStack[functionStack.length - 1];
+                        parentFunctions.set(node, parentFunction);
+                    }
                     functionStack.push(node);
                     // Track parameter names
-                    const params = collectParamNames(node.params);
+                    const params = collectParamNames(node.params, node);
                     functionParams.set(node, params);
                 }
             },
             FunctionExpression: (node) => {
                 if (!node.async) {
+                    // Track parent-child relationship if we're inside another function
+                    if (functionStack.length > 0) {
+                        const parentFunction = functionStack[functionStack.length - 1];
+                        parentFunctions.set(node, parentFunction);
+                    }
                     functionStack.push(node);
                     // Track parameter names
-                    const params = collectParamNames(node.params);
+                    const params = collectParamNames(node.params, node);
                     functionParams.set(node, params);
                 }
             },
             ArrowFunctionExpression: (node) => {
                 if (!node.async) {
+                    // Track parent-child relationship if we're inside another function
+                    if (functionStack.length > 0) {
+                        const parentFunction = functionStack[functionStack.length - 1];
+                        parentFunctions.set(node, parentFunction);
+                    }
                     functionStack.push(node);
                     // Track parameter names
-                    const params = collectParamNames(node.params);
+                    const params = collectParamNames(node.params, node);
                     functionParams.set(node, params);
                 }
             },
@@ -181,7 +286,9 @@ function createAsyncContextTracker() {
                     // Track event aliases (savedEvent = event)
                     if (node.init.type === 'Identifier') {
                         const sourceName = node.init.name;
-                        if (isLikelyEventParam(sourceName) || eventAliases.has(sourceName)) {
+                        // Only consider it an alias if it's a parameter in scope or derived from one
+                        if ((isLikelyEventParam(sourceName) && isParameterInScope(sourceName)) ||
+                            eventAliases.has(sourceName)) {
                             // Record this as an alias pointing to the source
                             eventAliases.set(varName, sourceName);
                         }
@@ -211,9 +318,11 @@ function createAsyncContextTracker() {
         functionParams,
         nonEventVariables,
         eventAliases,
+        parameterScopes,
         isInAsyncContext,
         isLikelyEventParam,
         isDerivedFromEventParam,
+        isParameterInScope,
         createListeners,
     };
 }

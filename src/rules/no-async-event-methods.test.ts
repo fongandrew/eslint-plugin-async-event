@@ -78,6 +78,19 @@ ruleTester.run('no-async-event-methods', noAsyncEventMethods, {
         event.preventDefault();
       });
     }`,
+
+		// External event variable (not a parameter) used after await is fine
+		`async function handler() {
+      await Promise.resolve();
+      event.preventDefault();
+    }`,
+			
+		// External event variable used in promise chain is fine
+		`function handler() {
+      fetchData().then(() => {
+        event.stopPropagation();
+      });
+    }`,
 	],
 	invalid: [
 		// Basic case - calling preventDefault after await
@@ -224,6 +237,17 @@ ruleTester.run('no-async-event-methods', noAsyncEventMethods, {
         fetchData().then(() => {
           ev.stopPropagation();
         });
+      }`,
+			errors: [{ messageId: 'noAsyncEventMethods' }],
+		},
+		
+		// Using event parameter in embedded function after await is NOT valid
+		{
+			code: `async function handler(event) {
+        await Promise.resolve();
+        (() => {
+          event.stopPropagation();
+        })();
       }`,
 			errors: [{ messageId: 'noAsyncEventMethods' }],
 		},

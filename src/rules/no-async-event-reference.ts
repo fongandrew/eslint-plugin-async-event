@@ -73,11 +73,9 @@ const noAsyncEventReference: Rule.RuleModule = {
 					return;
 				}
 
-				// Check if this is an event parameter or derived from one
-				const isEventParam = tracker.isLikelyEventParam(varName);
-				const isDerivedFromEvent = tracker.isDerivedFromEventParam(varName);
-
-				if (isEventParam || isDerivedFromEvent) {
+				// Only proceed if this is a function parameter or derived from one
+				// This is the key change to only look for actual parameters, not globals
+				if (tracker.isParameterInScope(varName) || tracker.isDerivedFromEventParam(varName)) {
 					// Special handling for function calls to avoid multiple reports for the same call
 					if (node.parent?.type === 'CallExpression') {
 						const callExpr = node.parent as CallExpression;

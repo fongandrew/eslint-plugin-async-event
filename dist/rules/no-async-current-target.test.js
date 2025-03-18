@@ -67,6 +67,17 @@ ruleTester.run('no-async-current-target', no_async_current_target_1.default, {
         console.log(event.currentTarget);
       });
     }`,
+        // External event variable (not a parameter) used after await is fine
+        `async function handler() {
+      await Promise.resolve();
+      console.log(event.currentTarget);
+    }`,
+        // External event variable used in promise chain is fine
+        `function handler() {
+      fetchData().then(() => {
+        console.log(event.currentTarget);
+      });
+    }`,
     ],
     invalid: [
         // Basic case - accessing currentTarget after await
@@ -191,6 +202,16 @@ ruleTester.run('no-async-current-target', no_async_current_target_1.default, {
         fetchData().then(() => {
           const id = e.currentTarget.id;
         });
+      }`,
+            errors: [{ messageId: 'noAsyncCurrentTarget' }],
+        },
+        // Using event parameter in embedded function after await is NOT valid
+        {
+            code: `async function handler(event) {
+        await Promise.resolve();
+        (() => {
+          console.log(event.currentTarget);
+        })();
       }`,
             errors: [{ messageId: 'noAsyncCurrentTarget' }],
         },

@@ -60,9 +60,6 @@ ruleTester.run('no-async-event-reference', no_async_event_reference_1.default, {
       });
       await fetch('/api');
     }`,
-        // We already have a test for extracting properties above
-        // This test is now moved to the invalid tests section
-        // to show that storing the event object and using it later is NOT valid
         // Variable called event but not an actual DOM event is fine
         `async function handler() {
       const event = { type: 'custom' };
@@ -86,6 +83,17 @@ ruleTester.run('no-async-event-reference', no_async_event_reference_1.default, {
       (function() {
         console.log(event);
       })();
+    }`,
+        // External event variable (not a parameter) used after await is fine
+        `async function handler() {
+      await Promise.resolve();
+      event.preventDefault();
+    }`,
+        // External event variable used in async context is fine
+        `function handler() {
+      fetchData().then(() => {
+        event.stopPropagation();
+      });
     }`,
     ],
     invalid: [
@@ -235,6 +243,27 @@ ruleTester.run('no-async-event-reference', no_async_event_reference_1.default, {
         const savedEvent = event;
         await fetch('/api');
         console.log(savedEvent);
+      }`,
+            errors: [{ messageId: 'noAsyncEventReference' }],
+        },
+        // Using event parameter in embedded IIFE after await is NOT valid
+        {
+            code: `async function handler(event) {
+        await Promise.resolve();
+        (() => {
+          event.foo();
+        })();
+      }`,
+            errors: [{ messageId: 'noAsyncEventReference' }],
+        },
+        // Using event parameter in embedded function after await is NOT valid
+        {
+            code: `async function handler(event) {
+        await Promise.resolve();
+        function foo() {
+          event.foo();
+        }
+        return foo;
       }`,
             errors: [{ messageId: 'noAsyncEventReference' }],
         },
