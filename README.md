@@ -22,7 +22,11 @@ This plugin provides three rules to catch common mistakes with event handling in
 
 ## Installation
 
-This plugin is not published yet.
+This isn't published on NPM yet, so you'll have to install directly from the repo:
+
+```
+npm install https://github.com/fongandrew/eslint-plugin-async-event.git
+```
 
 ## Usage
 
