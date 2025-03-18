@@ -108,8 +108,6 @@ export function createAsyncContextTracker(): AsyncContextTracker {
 
 		// For nested functions, check for parameter inheritance from parent scopes
 		if (functionStack.length > 0) {
-			const currentFunc = functionStack[functionStack.length - 1];
-
 			// Check if any of the parameter's scopes are ancestors of the current function
 			for (const paramFunc of paramScopes) {
 				// Check if the parameter function is an ancestor of the current function
@@ -167,8 +165,7 @@ export function createAsyncContextTracker(): AsyncContextTracker {
 		let asyncAwaitFunction: Node | null = null;
 
 		// Check each function in the stack, starting from the outermost
-		for (let i = 0; i < functionStack.length; i++) {
-			const func = functionStack[i];
+		for (const func of functionStack) {
 			if (functionsWithAwait.get(func)) {
 				foundAsyncAwait = true;
 				asyncAwaitFunction = func;
