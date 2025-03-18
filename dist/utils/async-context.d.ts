@@ -8,7 +8,7 @@ export interface AsyncContextTracker {
     nonEventVariables: Set<string>;
     eventAliases: Map<string, string>;
     parameterScopes: Map<string, Node[]>;
-    isInAsyncContext(objectName: string, messageId: string, node: Node, context: Rule.RuleContext): boolean;
+    isInAsyncContext(objectName: string, messageId: string, node: Node, context: Rule.RuleContext, data?: Record<string, any>): boolean;
     isLikelyEventParam(name: string): boolean;
     isDerivedFromEventParam(name: string): boolean;
     isParameterInScope(name: string): boolean;

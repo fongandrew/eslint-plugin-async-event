@@ -91,7 +91,7 @@ function createAsyncContextTracker() {
         return false;
     };
     // Method to check if we're in an async context and report if necessary
-    const isInAsyncContext = (objectName, messageId, node, context) => {
+    const isInAsyncContext = (objectName, messageId, node, context, data) => {
         // First check if this is actually a parameter or derived from a parameter
         // If it's not a parameter, we don't want to report it regardless of async context
         if (!isParameterInScope(objectName) && !isDerivedFromEventParam(objectName)) {
@@ -129,6 +129,7 @@ function createAsyncContextTracker() {
                     context.report({
                         node,
                         messageId,
+                        data,
                     });
                     return true;
                 }
@@ -138,6 +139,7 @@ function createAsyncContextTracker() {
                 context.report({
                     node,
                     messageId,
+                    data,
                 });
                 return true;
             }
@@ -164,6 +166,7 @@ function createAsyncContextTracker() {
                 context.report({
                     node,
                     messageId,
+                    data,
                 });
                 return true;
             }

@@ -6,18 +6,16 @@ ESLint plugin to detect unsafe event handling patterns in asynchronous contexts.
 
 In JavaScript event handlers, event objects and their properties have specific behaviors that can lead to bugs when used in asynchronous contexts:
 
-1. **Event object lifecycle**: Event objects may be recycled by the JavaScript engine after an event completes.
-2. **Event methods timing**: Methods like `preventDefault()` and `stopPropagation()` only work when called synchronously.
-3. **currentTarget references**: The `event.currentTarget` property is only valid during synchronous event handling.
+1. **Event methods timing**: Methods like `preventDefault()` and `stopPropagation()` only work when called synchronously.
+2. **Event property references**: When working with delegated events, frameworks may replace the `event.currentTarget` property as the event bubbles.
 
 When using `async` event handlers or promises in event callbacks, accessing these objects or methods after an `await` or in promise chains can lead to unexpected behavior or errors.
 
 ## Solution
 
-This plugin provides three rules to catch common mistakes with event handling in async contexts:
+This plugin provides two rules to catch common mistakes with event handling in async contexts:
 
-- **no-async-current-target**: Prevents accessing `.currentTarget` after await expressions
-- **no-async-event-methods**: Prevents calling event methods like `preventDefault()` after await expressions
+- **no-async-event-properties**: Prevents accessing specific event properties or calling methods after await expressions
 - **no-async-event-reference**: Prevents referencing event objects after await expressions
 
 ## Installation
@@ -45,8 +43,7 @@ export default [
       'async-event': asyncEventPlugin,
     },
     rules: {
-      'async-event/no-async-current-target': 'error',
-      'async-event/no-async-event-methods': 'error',
+      'async-event/no-async-event-properties': 'error',
       'async-event/no-async-event-reference': 'error',
     },
   },
@@ -58,8 +55,7 @@ export default [
 module.exports = {
   plugins: ['async-event'],
   rules: {
-    'async-event/no-async-current-target': 'error',
-    'async-event/no-async-event-methods': 'error',
+    'async-event/no-async-event-properties': 'error',
     'async-event/no-async-event-reference': 'error',
   },
 };
@@ -88,16 +84,27 @@ module.exports = {
 
 ## Rules
 
-### no-async-current-target
+### no-async-event-properties
 
-Prevents accessing `.currentTarget` after an await expression or in promise chains.
+Prevents accessing specific event properties or calling methods after await expressions or in promise chains.
 
-In JavaScript event handlers, the `event.currentTarget` property refers to the element that the event handler is attached to. When using event delegation, this value changes as the event bubbles through the DOM.
+By default, this rule disallows accessing the following properties after an await or in a promise chain:
+- `currentTarget` - This usually references the element to which an event listener is attached, but when working with event delegation, a single handler may be attached to the document that redefines `currentTarget` as the event bubbles.
+- `preventDefault` - Doesn't work if called asynchronously.
+- `stopPropagation` - Doesn't work if called asynchronously.
+- `stopImmediatePropagation` - Doesn't work if called asynchronously.
 
-However, when using `async` event handlers, using `event.currentTarget` after an `await` can lead to errors because:
-1. The event may have already completed bubbling
-2. The event object might be recycled by the browser/engine
-3. The reference to the original target may no longer be valid
+#### Rule Options
+
+You can customize which properties are disallowed by providing a properties array:
+
+```js
+{
+  'async-event/no-async-event-properties': ['error', {
+    properties: ['currentTarget', 'preventDefault', 'target', 'bubbles']
+  }]
+}
+```
 
 #### Examples of incorrect code:
 
@@ -108,51 +115,6 @@ async function handleClick(event) {
   console.log(event.currentTarget); // Error: currentTarget may no longer be valid
 }
 
-// ❌ Accessing currentTarget after await in arrow function
-const handleClick = async (event) => {
-  await updateUI();
-  return event.currentTarget.dataset.id; // Error
-};
-
-// ❌ Accessing currentTarget in promise chain
-function handleClick(event) {
-  fetchData().then(() => {
-    console.log(event.currentTarget); // Error
-  });
-}
-```
-
-#### Examples of correct code:
-
-```js
-// ✅ Storing currentTarget in a variable before await
-async function handleClick(event) {
-  const target = event.currentTarget;
-  await fetchData();
-  console.log(target); // Safe: using stored reference
-}
-
-// ✅ Using currentTarget before any await
-async function handleClick(event) {
-  console.log(event.currentTarget);
-  await updateUI();
-}
-
-// ✅ Using currentTarget in synchronous code is fine
-function handleClick(event) {
-  console.log(event.currentTarget);
-}
-```
-
-### no-async-event-methods
-
-Prevents calling event methods like `preventDefault()`, `stopPropagation()`, and `stopImmediatePropagation()` after await expressions or in promise chains.
-
-These methods need to be called synchronously during event handling to have the intended effect. Calling them after an await or in a promise chain is too late and won't work correctly.
-
-#### Examples of incorrect code:
-
-```js
 // ❌ Using preventDefault after await
 async function handleSubmit(event) {
   await validateForm();
@@ -170,6 +132,13 @@ function handleClick(event) {
 #### Examples of correct code:
 
 ```js
+// ✅ Storing currentTarget in a variable before await
+async function handleClick(event) {
+  const target = event.currentTarget;
+  await fetchData();
+  console.log(target); // Safe: using stored reference
+}
+
 // ✅ Using preventDefault before await
 async function handleSubmit(event) {
   event.preventDefault(); // Correct: called synchronously
@@ -177,20 +146,24 @@ async function handleSubmit(event) {
   // Process form...
 }
 
-// ✅ Using stopPropagation before async operations
+// ✅ Using stopPropagation before promise chain
 function handleClick(event) {
   event.stopPropagation(); // Correct: called synchronously
   fetchData().then(() => {
     // Handle data...
   });
 }
+
+// ✅ Accessing properties that aren't in the disallowed list
+async function handleInput(event) {
+  await fetchData();
+  console.log(event.type); // Safe if 'type' is not in the disallowed properties list
+}
 ```
 
 ### no-async-event-reference
 
-Prevents referencing event objects after await expressions or in promise chains.
-
-The event object itself may be recycled by the JavaScript engine after the event handling completes. Accessing any property or method on the event object after an await or in a promise chain can lead to unexpected behavior.
+Prevents referencing event objects after await expressions or in promise chains. This is essentially a stronger version of `no-async-event-properties` to prevent, e.g., asynchronously passing the `event` object to some helper function which then calls `preventDefault`.
 
 #### Examples of incorrect code:
 
@@ -198,13 +171,15 @@ The event object itself may be recycled by the JavaScript engine after the event
 // ❌ Referencing event object after await
 async function handleInput(event) {
   await saveData();
-  console.log(event.target.value); // Error: event may no longer be valid
+  // Error: `doSomethingWith` might do something unsafe with event
+  doSomethingWith(event);
 }
 
 // ❌ Using event in promise chain
 function handleChange(event) {
   fetchOptions().then(() => {
-    updateUI(event.target.value); // Error: event may be recycled
+    // Error: `updateUI` might do something unsafe with event
+    updateUI(event);
   });
 }
 ```
@@ -214,16 +189,16 @@ function handleChange(event) {
 ```js
 // ✅ Store needed values before await
 async function handleInput(event) {
-  const value = event.target.value;
+  const target = event.target;
   await saveData();
-  console.log(value); // Safe: using stored value
+  doSomethingWith(target); // Safe: using stored property
 }
 
 // ✅ Capture necessary data before promise chain
 function handleChange(event) {
-  const value = event.target.value;
+  const target = event.target;
   fetchOptions().then(() => {
-    updateUI(value); // Safe: using captured value
+    updateUI(target); // Safe: using captured property
   });
 }
 ```
