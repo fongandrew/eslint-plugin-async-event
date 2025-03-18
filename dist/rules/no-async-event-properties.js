@@ -43,7 +43,7 @@ const noAsyncEventProperties = {
             'preventDefault',
             'stopPropagation',
             'stopImmediatePropagation',
-            'currentTarget'
+            'currentTarget',
         ];
         // Get user-configured properties or use defaults
         const options = context.options[0] || {};
@@ -77,9 +77,11 @@ const noAsyncEventProperties = {
                     if (node.object.type === 'Identifier') {
                         objectName = node.object.name;
                         // Only proceed if this is a function parameter or derived from one
-                        if (tracker.isParameterInScope(objectName) || tracker.isDerivedFromEventParam(objectName)) {
+                        if (tracker.isParameterInScope(objectName) ||
+                            tracker.isDerivedFromEventParam(objectName)) {
                             // Check if it's likely an event parameter
-                            if (tracker.isLikelyEventParam(objectName) || tracker.isDerivedFromEventParam(objectName)) {
+                            if (tracker.isLikelyEventParam(objectName) ||
+                                tracker.isDerivedFromEventParam(objectName)) {
                                 // Skip if this variable is known not to be a DOM event
                                 if (!tracker.nonEventVariables.has(objectName)) {
                                     isEventObject = true;

@@ -42,10 +42,7 @@ function createAsyncContextTracker() {
     };
     // Helper to check if a variable name is likely an event parameter
     const isLikelyEventParam = (name) => {
-        return (name === 'event' ||
-            name === 'e' ||
-            name === 'ev' ||
-            name.endsWith('Event'));
+        return name === 'event' || name === 'e' || name === 'ev' || name.endsWith('Event');
     };
     // Check if a variable name is a parameter in any function in the current scope
     const isParameterInScope = (name) => {

@@ -105,7 +105,7 @@ ruleTester.run('no-async-event-properties', no_async_event_properties_1.default,
         // After await is fine with custom config:
         console.log(event.currentTarget); // This shouldn't report with custom config that excludes currentTarget
       }`,
-            options: [{ properties: ['preventDefault', 'stopPropagation'] }]
+            options: [{ properties: ['preventDefault', 'stopPropagation'] }],
         },
     ],
     invalid: [
@@ -115,10 +115,12 @@ ruleTester.run('no-async-event-properties', no_async_event_properties_1.default,
         await fetch('/api');
         event.preventDefault();
       }`,
-            errors: [{
+            errors: [
+                {
                     messageId: 'noAsyncEventProperties',
-                    data: { property: 'preventDefault' }
-                }],
+                    data: { property: 'preventDefault' },
+                },
+            ],
         },
         // Accessing currentTarget after await
         {
@@ -126,10 +128,12 @@ ruleTester.run('no-async-event-properties', no_async_event_properties_1.default,
         await fetch('/api');
         console.log(event.currentTarget);
       }`,
-            errors: [{
+            errors: [
+                {
                     messageId: 'noAsyncEventProperties',
-                    data: { property: 'currentTarget' }
-                }],
+                    data: { property: 'currentTarget' },
+                },
+            ],
         },
         // Multiple disallowed properties/methods after await
         {
@@ -151,10 +155,12 @@ ruleTester.run('no-async-event-properties', no_async_event_properties_1.default,
         await Promise.resolve();
         event.preventDefault();
       }`,
-            errors: [{
+            errors: [
+                {
                     messageId: 'noAsyncEventProperties',
-                    data: { property: 'preventDefault' }
-                }],
+                    data: { property: 'preventDefault' },
+                },
+            ],
         },
         // Method - accessing disallowed property/method after await
         {
@@ -164,10 +170,12 @@ ruleTester.run('no-async-event-properties', no_async_event_properties_1.default,
           event.preventDefault();
         }
       }`,
-            errors: [{
+            errors: [
+                {
                     messageId: 'noAsyncEventProperties',
-                    data: { property: 'preventDefault' }
-                }],
+                    data: { property: 'preventDefault' },
+                },
+            ],
         },
         // Multiple awaits - accessing disallowed property/method after any await
         {
@@ -176,10 +184,12 @@ ruleTester.run('no-async-event-properties', no_async_event_properties_1.default,
         await Promise.resolve();
         event.preventDefault();
       }`,
-            errors: [{
+            errors: [
+                {
                     messageId: 'noAsyncEventProperties',
-                    data: { property: 'preventDefault' }
-                }],
+                    data: { property: 'preventDefault' },
+                },
+            ],
         },
         // Using in nested block after await
         {
@@ -189,10 +199,12 @@ ruleTester.run('no-async-event-properties', no_async_event_properties_1.default,
           event.preventDefault();
         }
       }`,
-            errors: [{
+            errors: [
+                {
                     messageId: 'noAsyncEventProperties',
-                    data: { property: 'preventDefault' }
-                }],
+                    data: { property: 'preventDefault' },
+                },
+            ],
         },
         // Promise chain .then - accessing disallowed property/method inside .then
         {
@@ -201,10 +213,12 @@ ruleTester.run('no-async-event-properties', no_async_event_properties_1.default,
           event.preventDefault();
         });
       }`,
-            errors: [{
+            errors: [
+                {
                     messageId: 'noAsyncEventProperties',
-                    data: { property: 'preventDefault' }
-                }],
+                    data: { property: 'preventDefault' },
+                },
+            ],
         },
         // Promise chain with property access
         {
@@ -213,10 +227,12 @@ ruleTester.run('no-async-event-properties', no_async_event_properties_1.default,
           console.log(event.currentTarget);
         });
       }`,
-            errors: [{
+            errors: [
+                {
                     messageId: 'noAsyncEventProperties',
-                    data: { property: 'currentTarget' }
-                }],
+                    data: { property: 'currentTarget' },
+                },
+            ],
         },
         // Using with different event parameter names
         {
@@ -225,10 +241,12 @@ ruleTester.run('no-async-event-properties', no_async_event_properties_1.default,
           e.preventDefault();
         });
       }`,
-            errors: [{
+            errors: [
+                {
                     messageId: 'noAsyncEventProperties',
-                    data: { property: 'preventDefault' }
-                }],
+                    data: { property: 'preventDefault' },
+                },
+            ],
         },
         // Using event parameter in embedded function after await
         {
@@ -251,10 +269,12 @@ ruleTester.run('no-async-event-properties', no_async_event_properties_1.default,
         event.bubbles(); // Not in the default list, but in our custom list
       }`,
             options: [{ properties: ['bubbles'] }],
-            errors: [{
+            errors: [
+                {
                     messageId: 'noAsyncEventProperties',
-                    data: { property: 'bubbles' }
-                }],
+                    data: { property: 'bubbles' },
+                },
+            ],
         },
         // Custom configuration excluding some default properties
         {
@@ -264,10 +284,12 @@ ruleTester.run('no-async-event-properties', no_async_event_properties_1.default,
         console.log(event.currentTarget); // Should not be reported - not in custom list
       }`,
             options: [{ properties: ['preventDefault', 'stopPropagation'] }],
-            errors: [{
+            errors: [
+                {
                     messageId: 'noAsyncEventProperties',
-                    data: { property: 'preventDefault' }
-                }],
+                    data: { property: 'preventDefault' },
+                },
+            ],
         },
     ],
 });
