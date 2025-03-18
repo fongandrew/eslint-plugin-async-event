@@ -1,14 +1,17 @@
 import noAsyncCurrentTarget from './rules/no-async-current-target';
+import noAsyncEventMethods from './rules/no-async-event-methods';
 
 export = {
 	rules: {
 		'no-async-current-target': noAsyncCurrentTarget,
+		'no-async-event-methods': noAsyncEventMethods,
 	},
 	configs: {
 		recommended: {
-			plugins: ['no-async-current-target'],
+			plugins: ['async-event'],
 			rules: {
-				'no-async-current-target/no-async-current-target': 'error',
+				'async-event/no-async-current-target': 'error',
+				'async-event/no-async-event-methods': 'error',
 			},
 		},
 	},
