@@ -5,27 +5,45 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
 	{
-        files: ["**/*.ts"],
 		ignores: ['dist/**/*', 'node_modules/**/*', '.*/**/*'],
-        linterOptions: {
+	},
+
+	{
+		files: ['**/*.ts'],
+		linterOptions: {
 			reportUnusedDisableDirectives: true,
 		},
-		plugins: {
-			prettier: prettierPlugin,
-		}
+	},
+
+	{
+		files: ['**/*.js'],
+		languageOptions: {
+			globals: {
+				module: 'readonly',
+				require: 'readonly',
+				process: 'readonly',
+				__dirname: 'readonly',
+			},
+		},
 	},
 
 	eslint.configs.recommended,
-    tseslint.configs.recommended,
+	tseslint.configs.recommended,
 	tseslint.configs.stylistic,
-    eslintConfigPrettier,
+	eslintConfigPrettier,
 
 	{
+		plugins: {
+			prettier: prettierPlugin,
+		},
 		rules: {
-			'prettier/prettier': ['error', {
-				// So this doesn't blow up on Windows CI
-				'endOfLine': 'auto',
-			}],
+			'prettier/prettier': [
+				'error',
+				{
+					// So this doesn't blow up on Windows CI
+					endOfLine: 'auto',
+				},
+			],
 			'no-console': ['error', { allow: ['warn', 'error'] }],
 			'@typescript-eslint/consistent-type-imports': [
 				'error',
@@ -41,7 +59,7 @@ export default tseslint.config(
 					caughtErrorsIgnorePattern: '^_',
 					varsIgnorePattern: '^_',
 				},
-			]
-		}
-	}
+			],
+		},
+	},
 );
