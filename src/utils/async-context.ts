@@ -16,6 +16,7 @@ export interface AsyncContextTracker {
 	functionsInPromise: WeakSet<Node>;
 	functionParams: WeakMap<Node, Set<string>>;
 	nonEventVariables: Set<string>;
+	eventAliases: Map<string, string>; // Map of aliases to their source event names
 
 	// Method to check if we're in an async context (after await or in promise chain)
 	isInAsyncContext(
@@ -27,6 +28,9 @@ export interface AsyncContextTracker {
 
 	// Method to check if name is a common event parameter name
 	isLikelyEventParam(name: string): boolean;
+
+	// Method to check if a variable is derived from an event parameter
+	isDerivedFromEventParam(name: string): boolean;
 
 	// Register all the common listeners for tracking async context
 	createListeners(context: Rule.RuleContext): Rule.RuleListener;
@@ -46,8 +50,10 @@ export function createAsyncContextTracker(): AsyncContextTracker {
 	const functionsInPromise = new WeakSet<Node>();
 	// Track parameters of functions to know which variables are defined within a function
 	const functionParams = new WeakMap<Node, Set<string>>();
-	// Track variables that are not DOM events
+	// Track variables that are not DOM events (e.g., custom events created within the function)
 	const nonEventVariables = new Set<string>();
+	// Track variables that are aliases of event parameters (e.g., const savedEvent = event)
+	const eventAliases = new Map<string, string>();
 
 	// Helper function to collect parameter names
 	const collectParamNames = (params: Pattern[]): Set<string> => {
@@ -62,13 +68,32 @@ export function createAsyncContextTracker(): AsyncContextTracker {
 
 	// Helper to check if a variable name is likely an event parameter
 	const isLikelyEventParam = (name: string): boolean => {
-		return (
-			name === 'event' ||
-			name === 'e' ||
-			name === 'ev' ||
-			name === 'event' ||
-			name.endsWith('Event')
-		);
+		return name === 'event' || name === 'e' || name === 'ev' || name.endsWith('Event');
+	};
+
+	// Helper to check if a variable is derived from an event parameter
+	const isDerivedFromEventParam = (name: string): boolean => {
+		// Check if this is an alias of an event parameter
+		let current = name;
+		const visited = new Set<string>();
+
+		while (eventAliases.has(current) && !visited.has(current)) {
+			visited.add(current);
+			current = eventAliases.get(current)!;
+
+			// If we found an event parameter in the chain, return true
+			if (isLikelyEventParam(current)) {
+				// Check if this is a parameter in any function in the stack
+				for (const func of functionStack) {
+					const params = functionParams.get(func) || new Set();
+					if (params.has(current)) {
+						return true;
+					}
+				}
+			}
+		}
+
+		return false;
 	};
 
 	// Method to check if we're in an async context and report if necessary
@@ -203,19 +228,28 @@ export function createAsyncContextTracker(): AsyncContextTracker {
 				}
 			},
 
-			// Track variables that are explicitly not DOM events
+			// Track variable declarations
 			VariableDeclarator: (node: VariableDeclarator & Rule.NodeParentExtension) => {
-				// If we see something like 'const event = { ... }'
-				// then this is not a DOM event
-				if (
-					node.id &&
-					node.id.type === 'Identifier' &&
-					node.init &&
-					(node.init.type === 'ObjectExpression' ||
+				if (node.id && node.id.type === 'Identifier' && node.init) {
+					const varName = node.id.name;
+
+					// Track non-DOM events (objects, new expressions, function calls)
+					if (
+						node.init.type === 'ObjectExpression' ||
 						node.init.type === 'NewExpression' ||
-						node.init.type === 'CallExpression')
-				) {
-					nonEventVariables.add(node.id.name);
+						node.init.type === 'CallExpression'
+					) {
+						nonEventVariables.add(varName);
+					}
+
+					// Track event aliases (savedEvent = event)
+					if (node.init.type === 'Identifier') {
+						const sourceName = node.init.name;
+						if (isLikelyEventParam(sourceName) || eventAliases.has(sourceName)) {
+							// Record this as an alias pointing to the source
+							eventAliases.set(varName, sourceName);
+						}
+					}
 				}
 			},
 
@@ -246,8 +280,10 @@ export function createAsyncContextTracker(): AsyncContextTracker {
 		functionsInPromise,
 		functionParams,
 		nonEventVariables,
+		eventAliases,
 		isInAsyncContext,
 		isLikelyEventParam,
+		isDerivedFromEventParam,
 		createListeners,
 	};
 }

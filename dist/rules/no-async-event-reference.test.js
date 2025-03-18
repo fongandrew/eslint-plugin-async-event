@@ -60,13 +60,9 @@ ruleTester.run('no-async-event-reference', no_async_event_reference_1.default, {
       });
       await fetch('/api');
     }`,
-        // Storing the event in a variable and using that after await is still valid
-        // (though the event object itself might be stale, this is up to the developer)
-        `async function handler(event) {
-      const savedEvent = event;
-      await fetch('/api');
-      console.log(savedEvent);
-    }`,
+        // We already have a test for extracting properties above
+        // This test is now moved to the invalid tests section
+        // to show that storing the event object and using it later is NOT valid
         // Variable called event but not an actual DOM event is fine
         `async function handler() {
       const event = { type: 'custom' };
@@ -231,6 +227,16 @@ ruleTester.run('no-async-event-reference', no_async_event_reference_1.default, {
                 { messageId: 'noAsyncEventReference' },
                 { messageId: 'noAsyncEventReference' },
             ],
+        },
+        // Storing the event in a variable and using that after await is NOT valid
+        // Event objects should not be referenced after async operations, even via aliases
+        {
+            code: `async function handler(event) {
+        const savedEvent = event;
+        await fetch('/api');
+        console.log(savedEvent);
+      }`,
+            errors: [{ messageId: 'noAsyncEventReference' }],
         },
     ],
 });

@@ -6,8 +6,10 @@ export interface AsyncContextTracker {
     functionsInPromise: WeakSet<Node>;
     functionParams: WeakMap<Node, Set<string>>;
     nonEventVariables: Set<string>;
+    eventAliases: Map<string, string>;
     isInAsyncContext(objectName: string, messageId: string, node: Node, context: Rule.RuleContext): boolean;
     isLikelyEventParam(name: string): boolean;
+    isDerivedFromEventParam(name: string): boolean;
     createListeners(context: Rule.RuleContext): Rule.RuleListener;
 }
 /**

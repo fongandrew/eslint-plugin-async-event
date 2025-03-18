@@ -15,8 +15,10 @@ function createAsyncContextTracker() {
     const functionsInPromise = new WeakSet();
     // Track parameters of functions to know which variables are defined within a function
     const functionParams = new WeakMap();
-    // Track variables that are not DOM events
+    // Track variables that are not DOM events (e.g., custom events created within the function)
     const nonEventVariables = new Set();
+    // Track variables that are aliases of event parameters (e.g., const savedEvent = event)
+    const eventAliases = new Map();
     // Helper function to collect parameter names
     const collectParamNames = (params) => {
         const paramNames = new Set();
@@ -32,8 +34,28 @@ function createAsyncContextTracker() {
         return (name === 'event' ||
             name === 'e' ||
             name === 'ev' ||
-            name === 'event' ||
             name.endsWith('Event'));
+    };
+    // Helper to check if a variable is derived from an event parameter
+    const isDerivedFromEventParam = (name) => {
+        // Check if this is an alias of an event parameter
+        let current = name;
+        let visited = new Set();
+        while (eventAliases.has(current) && !visited.has(current)) {
+            visited.add(current);
+            current = eventAliases.get(current);
+            // If we found an event parameter in the chain, return true
+            if (isLikelyEventParam(current)) {
+                // Check if this is a parameter in any function in the stack
+                for (const func of functionStack) {
+                    const params = functionParams.get(func) || new Set();
+                    if (params.has(current)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     };
     // Method to check if we're in an async context and report if necessary
     const isInAsyncContext = (objectName, messageId, node, context) => {
@@ -146,17 +168,24 @@ function createAsyncContextTracker() {
                     functionsWithAwait.set(currentFunction, true);
                 }
             },
-            // Track variables that are explicitly not DOM events
+            // Track variable declarations
             VariableDeclarator: (node) => {
-                // If we see something like 'const event = { ... }'
-                // then this is not a DOM event
-                if (node.id &&
-                    node.id.type === 'Identifier' &&
-                    node.init &&
-                    (node.init.type === 'ObjectExpression' ||
+                if (node.id && node.id.type === 'Identifier' && node.init) {
+                    const varName = node.id.name;
+                    // Track non-DOM events (objects, new expressions, function calls)
+                    if (node.init.type === 'ObjectExpression' ||
                         node.init.type === 'NewExpression' ||
-                        node.init.type === 'CallExpression')) {
-                    nonEventVariables.add(node.id.name);
+                        node.init.type === 'CallExpression') {
+                        nonEventVariables.add(varName);
+                    }
+                    // Track event aliases (savedEvent = event)
+                    if (node.init.type === 'Identifier') {
+                        const sourceName = node.init.name;
+                        if (isLikelyEventParam(sourceName) || eventAliases.has(sourceName)) {
+                            // Record this as an alias pointing to the source
+                            eventAliases.set(varName, sourceName);
+                        }
+                    }
                 }
             },
             // Detect callback functions in promise chains (.then, .catch, .finally)
@@ -181,8 +210,10 @@ function createAsyncContextTracker() {
         functionsInPromise,
         functionParams,
         nonEventVariables,
+        eventAliases,
         isInAsyncContext,
         isLikelyEventParam,
+        isDerivedFromEventParam,
         createListeners,
     };
 }
