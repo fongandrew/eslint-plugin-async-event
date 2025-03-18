@@ -43,6 +43,9 @@ export default [
       'async-event': asyncEventPlugin,
     },
     rules: {
+      // no-async-event-reference is a stronger version of
+      // no-async-event-properties, so really no need to
+      // include both, but do what works for you
       'async-event/no-async-event-properties': 'error',
       'async-event/no-async-event-reference': 'error',
     },
@@ -55,6 +58,9 @@ export default [
 module.exports = {
   plugins: ['async-event'],
   rules: {
+    // no-async-event-reference is a stronger version of
+    // no-async-event-properties, so really no need to
+    // include both, but do what works for you
     'async-event/no-async-event-properties': 'error',
     'async-event/no-async-event-reference': 'error',
   },
