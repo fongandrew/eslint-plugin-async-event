@@ -29,6 +29,7 @@ function createAsyncContextTracker() {
             'event',
             'e',
             'ev',
+            'evt',
             '*Event', // ends with "Event"
         ],
     };

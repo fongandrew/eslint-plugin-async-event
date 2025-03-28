@@ -1,5 +1,8 @@
 # eslint-plugin-async-event
 
+<a href="https://www.npmjs.com/package/eslint-plugin-async-event"><img src="https://img.shields.io/npm/v/eslint-plugin-async-event" alt="NPM badge" />
+</a>
+
 ESLint plugin to detect unsafe event handling patterns in asynchronous contexts.
 
 ## Problem
@@ -20,10 +23,10 @@ This plugin provides two rules to catch common mistakes with event handling in a
 
 ## Installation
 
-This isn't published on NPM yet, so you'll have to install directly from the repo:
+Install from [NPM](https://www.npmjs.com/package/eslint-plugin-async-event)
 
 ```
-npm install https://github.com/fongandrew/eslint-plugin-async-event.git
+npm install eslint-plugin-async-event
 ```
 
 ## Usage
