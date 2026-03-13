@@ -1,0 +1,6 @@
+{
+	"review": "task",
+	"gitCommit": "subtask",
+	"maxRetries": 3,
+	"maxIterations": 50
+}

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix false positive when event references appear as arguments inside an
+  `await` expression (e.g., `await doThing(e.id)`). These arguments are
+  evaluated synchronously before the `await` suspends, so they should not
+  be flagged. Affects both `no-async-event-reference` and
+  `no-async-event-properties` rules.
+
 ## [1.0.1] - 2026-03-12
 
 ### Fixed

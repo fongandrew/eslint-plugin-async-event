@@ -399,8 +399,11 @@ export function createAsyncContextTracker(): AsyncContextTracker {
 				}
 			},
 
-			// Detect await expressions
-			AwaitExpression: () => {
+			// Detect await expressions - use :exit so that sub-expressions inside
+			// the await (e.g., arguments like `e.id` in `await doThing(e.id)`) are
+			// visited before the function is marked as having encountered an await.
+			// Those sub-expressions are evaluated synchronously before the await.
+			'AwaitExpression:exit': () => {
 				if (functionStack.length > 0) {
 					const currentFunction = functionStack[functionStack.length - 1];
 					functionsWithAwait.set(currentFunction, true);
