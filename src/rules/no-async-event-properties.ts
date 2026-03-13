@@ -147,7 +147,11 @@ const noAsyncEventProperties: Rule.RuleModule = {
 				// Run the base CallExpression handler to track promise chains
 				if (baseListeners.CallExpression) {
 					// Call the base listener
-					baseListeners.CallExpression(node);
+					baseListeners.CallExpression(
+						node as unknown as Parameters<
+							NonNullable<typeof baseListeners.CallExpression>
+						>[0],
+					);
 				}
 
 				// We only check if the callee is a MemberExpression
