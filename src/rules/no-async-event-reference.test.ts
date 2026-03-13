@@ -93,6 +93,17 @@ ruleTester.run('no-async-event-reference', noAsyncEventReference, {
       })();
     }`,
 
+		// Multiple callbacks with same event param name inside async function is fine
+		`async function init() {
+      await foo();
+      globalThis.addEventListener('error', (e) => {
+        log.error(e.error);
+      });
+      globalThis.addEventListener('unhandledrejection', (e) => {
+        log.error(e.reason);
+      });
+    }`,
+
 		// External event variable (not a parameter) used after await is fine
 		`async function handler() {
       await Promise.resolve();

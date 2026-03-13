@@ -224,10 +224,16 @@ export function createAsyncContextTracker(): AsyncContextTracker {
 			// 2. From a parent function of the async function
 			// 3. From a parent function of the current function
 			for (const paramFunc of paramScopes) {
+				// Skip functions no longer in the stack (already exited)
+				const paramFuncIndex = functionStack.indexOf(paramFunc);
+				if (paramFuncIndex === -1) {
+					continue;
+				}
+
 				// If the parameter is from the async function or a parent, report it
 				if (
 					paramFunc === asyncAwaitFunction ||
-					functionStack.indexOf(paramFunc) < functionStack.indexOf(asyncAwaitFunction)
+					paramFuncIndex < functionStack.indexOf(asyncAwaitFunction)
 				) {
 					context.report({
 						node,
