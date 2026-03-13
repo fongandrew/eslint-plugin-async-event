@@ -96,6 +96,15 @@ ruleTester.run('no-async-event-properties', no_async_event_properties_1.default,
         console.log(event.currentTarget);
       });
     }`,
+        // Event property access inside an await expression is synchronous - should not be flagged
+        `const handler = async (e) => {
+      await doThing(e.currentTarget);
+      await doSomethingElse();
+    }`,
+        // Event method call inside an await expression is synchronous
+        `async function handler(event) {
+      await doThing(event.preventDefault());
+    }`,
         // Custom configuration - only checking specific properties
         {
             code: `async function handler(event) {

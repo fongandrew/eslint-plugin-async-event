@@ -105,6 +105,29 @@ ruleTester.run('no-async-event-reference', no_async_event_reference_1.default, {
         event.stopPropagation();
       });
     }`,
+        // Event reference as argument inside an await expression is synchronous - should not be flagged
+        `const handler = async (e) => {
+      await doThing(e.id);
+      await doSomethingElse();
+    }`,
+        // Event reference as argument inside a nested await expression is synchronous
+        `async function handler(event) {
+      await doThing(event);
+      await doSomethingElse();
+    }`,
+        // Event reference in await expression argument (property access)
+        `async function handler(event) {
+      await fetch(event.target.value);
+    }`,
+        // Multiple event references in await arguments are all synchronous
+        `async function handler(e) {
+      await doThing(e.id, e.type);
+    }`,
+        // Event reference in first await, then second await with no event ref is fine
+        `async function handler(e) {
+      await doThing(e.id);
+      await doSomethingElse();
+    }`,
     ],
     invalid: [
         // Basic case - using event after await
